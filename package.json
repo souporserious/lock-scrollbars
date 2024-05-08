@@ -1,0 +1,21 @@
+{
+  "name": "lock-scrollbars",
+  "version": "0.1.0",
+  "description": "Lock all scrollbars optionally allowing for a single scrollbar to be unlocked.",
+  "main": "index.js",
+  "author": "Travis Arnold (http://souporserious.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/souporserious/lock-scrollbars/issues"
+  },
+  "homepage": "https://github.com/souporserious/lock-scrollbars",
+  "keywords": [
+    "scroll",
+    "lock",
+    "disable",
+    "modal",
+    "popover",
+    "dialog",
+    "overlay"
+  ]
+}
