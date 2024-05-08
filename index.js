@@ -4,8 +4,10 @@ let lockedScrolls = []
 /**
  * Lock all scrollbars by disabling mousewheel and locking scrollbars in position.
  * Optionally provide an element to allow it to scroll when hovered.
+ * @param {HTMLElement|null} node - The DOM element to allow scrolling on hover.
+ * @returns {() => void} - Function to unlock the scrollbars.
  */
-function lockScrollbars(node) {
+function lockScrollbars(node = null) {
   const scrollCoords = new WeakMap()
   const preventDefault = (event) => event.preventDefault()
   const preventScrollKeys = (event) => {
@@ -41,6 +43,9 @@ function lockScrollbars(node) {
     }
   }
   const wheelLock = (event) => {
+    if (node === null) {
+      return
+    }
     const scrollableDistance = node.scrollHeight - node.offsetHeight
     if (
       (event.deltaY > 0 && node.scrollTop >= scrollableDistance) ||
