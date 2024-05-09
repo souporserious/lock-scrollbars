@@ -1,5 +1,23 @@
 const listenerOptions = { capture: true, passive: false }
 let lockedScrolls = []
+let scrollbarWidth
+
+if (typeof window !== 'undefined' && scrollbarWidth === undefined) {
+  const div = document.createElement('div')
+  div.setAttribute(
+    'style',
+    `
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    pointer-events: none;
+    overflow: scroll;
+  `
+  )
+  document.body.appendChild(div)
+  scrollbarWidth = div.offsetWidth - div.clientWidth
+  document.body.removeChild(div)
+}
 
 /**
  * Lock all scrollbars by disabling mousewheel and locking scrollbars in position.
@@ -86,6 +104,19 @@ function lockScrollbars(node = null) {
     window.removeEventListener('keydown', preventScrollKeys, listenerOptions)
   }
 
+  let scrollY = window.scrollY
+
+  if (scrollbarWidth > 0 && document.body.scrollHeight > window.innerHeight) {
+    document.body.style.paddingRight = `${scrollbarWidth}px`
+  }
+
+  if (lockedScrolls.length === 0) {
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.left = '0'
+    document.body.style.right = '0'
+  }
+
   if (lockedScrolls.length > 0) {
     // check if we need to remove any current scroll locks
     lockedScrolls[lockedScrolls.length - 1].removeListeners()
@@ -132,6 +163,20 @@ function lockScrollbars(node = null) {
       if (lockedScrolls.length > 0) {
         lockedScrolls[lockedScrolls.length - 1].addListeners()
       }
+    }
+
+    if (lockedScrolls.length === 0) {
+      if (
+        scrollbarWidth > 0 &&
+        document.body.scrollHeight > window.innerHeight
+      ) {
+        document.body.style.paddingRight = ''
+      }
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.left = ''
+      document.body.style.right = ''
+      window.scrollTo(0, scrollY)
     }
   }
 }
