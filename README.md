@@ -2,9 +2,6 @@
 
 Lock all scrollbars to prevent scrolling the page. Useful for modals, popovers, and other UI elements that require user interaction before continuing.
 
-> [!NOTE]
-> Most libraries that lock scroll modify the body overflow style which can cause performance issues since [the entire page styles are recalculated](https://atfzl.com/articles/don-t-attach-tooltips-to-document-body/). This library instead uses the `scroll` event to prevent scrolling and keeping the window in the same position until it is unlocked.
-
 ## Installation
 
 ```bash
@@ -23,19 +20,10 @@ const unlockScrollbars = lockScrollbars()
 unlockScrollbars()
 ```
 
-Optionally, provide an element to allow scrolling within that element:
-
-```ts
-import { lockScrollbars } from 'lock-scrollbars'
-
-const element = document.getElementById('scrollable-element')
-const unlockScrollbars = lockScrollbars(element)
-```
-
-### React
+### React Example
 
 ```tsx
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { lockScrollbars } from 'lock-scrollbars'
 
 function Modal({
@@ -45,17 +33,24 @@ function Modal({
   open: boolean
   children: React.ReactNode
 }) {
-  const element = useRef<HTMLDivElement>(null)
-  const unlockScrollbars = useRef<ReturnType<typeof lockScrollbars>>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const unlockScrollbars = useRef<ReturnType<typeof lockScrollbars> | null>(
+    null
+  )
 
   useEffect(() => {
-    if (open) {
-      unlockScrollbars.current = lockScrollbars(element.current!)
-    } else {
-      unlockScrollbars.current?.()
+    const dialogNode = dialogRef.current
+    if (dialogNode) {
+      if (open) {
+        dialogNode.showModal()
+        unlockScrollbars.current = lockScrollbars(dialogNode)
+      } else {
+        dialogNode.close()
+        unlockScrollbars.current?.()
+      }
     }
   }, [open])
 
-  return <div ref={element}>{children}</div>
+  return <dialog ref={dialogRef}>{children}</dialog>
 }
 ```
