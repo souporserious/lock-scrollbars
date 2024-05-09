@@ -2,6 +2,8 @@
 
 Lock all scrollbars to prevent scrolling the page. Useful for modals, popovers, and other UI elements that require user interaction before continuing.
 
+[View Example](https://lock-scrollbars.vercel.app/)
+
 ## Installation
 
 ```bash
