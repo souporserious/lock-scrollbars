@@ -78,7 +78,7 @@ export default function Page() {
         </div>
       </main>
       <footer className="flex items-baseline justify-center p-4 gap-2">
-        <span>Built with</span>
+        <span className="text-gray-500 dark:text-gray-400">Built with</span>
         <MdxtsLogoLink className="h-3" />
       </footer>
     </>
