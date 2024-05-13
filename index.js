@@ -45,10 +45,21 @@ function lockScrollbars(node = null) {
     }
   }
   const wheelLock = (event) => {
-    if (node !== event.target && node.contains(event.target)) {
+    const scrollableDistance = node.scrollHeight - node.offsetHeight
+    const isTarget = node === event.target
+    const isChildOfTarget = node.contains(event.target)
+
+    if (scrollableDistance > 0 && !isTarget && isChildOfTarget) {
       return
     }
-    event.preventDefault()
+
+    if (
+      isTarget ||
+      (event.deltaY > 0 && node.scrollTop >= scrollableDistance) ||
+      (event.deltaY < 0 && node.scrollTop <= 0)
+    ) {
+      event.preventDefault()
+    }
   }
   const scrollLock = (event) => {
     let scrollElement = event.target
