@@ -1,70 +1,33 @@
 const listenerOptions = { capture: true, passive: false }
+const scrollCoords = new WeakMap()
+const preventDefault = (event) => event.preventDefault()
+const preventScrollKeys = (event) => {
+  const scrollKeys = [
+    'Space',
+    'PageUp',
+    'PageDown',
+    'End',
+    'Home',
+    'ArrowLeft',
+    'ArrowUp',
+    'ArrowRight',
+    'ArrowDown',
+  ]
+  if (scrollKeys.includes(event.key)) {
+    event.preventDefault()
+  }
+}
+/** @type {HTMLStyleElement} */
+let style
 let lockedScrolls = []
-let scrollbarWidth
-
-/**
- * Set the cached width of the document body's scrollbar.
- * This is used to determine how much padding to add to the body when locking scrollbars.
- */
-function setScrollbarWidth() {
-  const div = document.createElement('div')
-  div.setAttribute(
-    'style',
-    `
-    width: 100px;
-    height: 100px;
-    position: absolute;
-    pointer-events: none;
-    overflow: scroll;
-  `
-  )
-  document.body.appendChild(div)
-  scrollbarWidth = div.offsetWidth - div.clientWidth
-  document.body.removeChild(div)
-}
-
-if (typeof window !== 'undefined' && scrollbarWidth === undefined) {
-  let isInitialResize = true
-  let resizeTimeout
-
-  new ResizeObserver(() => {
-    if (isInitialResize) {
-      setScrollbarWidth()
-      isInitialResize = false
-    }
-
-    clearTimeout(resizeTimeout)
-    resizeTimeout = setTimeout(() => {
-      isInitialResize = true
-    }, 1000)
-  }).observe(document.documentElement)
-}
 
 /**
  * Lock all scrollbars by disabling mousewheel and locking scrollbars in position.
- * Optionally provide an element to allow it to scroll when hovered.
+ * Optionally provide a specific element to allow scrolling.
  * @param {HTMLElement|null} node - The DOM element to allow scrolling on hover.
  * @returns {() => void} - Function to unlock the scrollbars.
  */
 function lockScrollbars(node = null) {
-  const scrollCoords = new WeakMap()
-  const preventDefault = (event) => event.preventDefault()
-  const preventScrollKeys = (event) => {
-    const scrollKeys = [
-      'Space',
-      'PageUp',
-      'PageDown',
-      'End',
-      'Home',
-      'ArrowLeft',
-      'ArrowUp',
-      'ArrowRight',
-      'ArrowDown',
-    ]
-    if (scrollKeys.includes(event.key)) {
-      event.preventDefault()
-    }
-  }
   const mouseOver = () => {
     window.removeEventListener('wheel', preventDefault, listenerOptions)
     window.removeEventListener('keydown', preventScrollKeys, listenerOptions)
@@ -82,27 +45,28 @@ function lockScrollbars(node = null) {
     }
   }
   const wheelLock = (event) => {
-    if (node === null) {
+    if (node !== event.target && node.contains(event.target)) {
       return
     }
-    const scrollableDistance = node.scrollHeight - node.offsetHeight
-    if (
-      (event.deltaY > 0 && node.scrollTop >= scrollableDistance) ||
-      (event.deltaY < 0 && node.scrollTop <= 0)
-    ) {
-      event.preventDefault()
-    }
+    event.preventDefault()
   }
   const scrollLock = (event) => {
-    const scrollElement =
-      event.target === document ? document.documentElement : event.target
+    let scrollElement = event.target
+
+    if (event.target === document) {
+      scrollElement = document.documentElement
+    }
+
     const scrollElementCoords = scrollCoords.get(scrollElement)
+
     if (scrollElementCoords) {
       scrollElement.scrollLeft = scrollElementCoords.x
       scrollElement.scrollTop = scrollElementCoords.y
     }
   }
-  const addListeners = () => {
+  let className
+
+  const create = () => {
     if (node) {
       node.addEventListener('mouseover', mouseOver, true)
       node.addEventListener('mouseout', mouseOut, true)
@@ -112,12 +76,50 @@ function lockScrollbars(node = null) {
     window.addEventListener('wheel', wheelLock, listenerOptions)
     window.addEventListener('scroll', scrollLock, true)
     window.addEventListener('keydown', preventScrollKeys, listenerOptions)
+
+    /**
+     * Set touch action styles to prevent scrolling on mobile devices.
+     * To fix Safari still scrolling the page on overflow elements, we apply
+     * pan-x or pan-y to the element depending on the scrollable axis.
+     */
+    const shouldCreateStyle = style === undefined
+
+    if (shouldCreateStyle) {
+      style = document.createElement('style')
+    }
+
+    if (node) {
+      const canScrollX = node.scrollWidth > node.clientWidth
+      const canScrollY = node.scrollHeight > node.clientHeight
+      let touchAction = 'none'
+
+      if (canScrollX && canScrollY) {
+        touchAction = 'auto'
+      } else if (canScrollX) {
+        touchAction = 'pan-x'
+      } else if (canScrollY) {
+        touchAction = 'pan-y'
+      }
+
+      className = `ls${Math.random().toString(36).slice(2)}`
+      node.classList.add(className)
+
+      style.innerHTML = `*, ::backdrop { touch-action: none }\n.${className} { overscroll-behavior: contain; touch-action: ${touchAction} }\n.${className} * { touch-action: auto }`
+    } else {
+      style.innerHTML = `*, ::backdrop { touch-action: none }`
+    }
+
+    if (shouldCreateStyle) {
+      document.head.appendChild(style)
+    }
   }
-  const removeListeners = () => {
+
+  const destroy = () => {
     if (node) {
       node.removeEventListener('mouseover', mouseOver, true)
       node.removeEventListener('mouseout', mouseOut, true)
       mouseOver()
+      node.classList.remove(className)
     }
     window.removeEventListener('mousedown', mouseDown, true)
     window.removeEventListener('wheel', wheelLock, listenerOptions)
@@ -125,22 +127,9 @@ function lockScrollbars(node = null) {
     window.removeEventListener('keydown', preventScrollKeys, listenerOptions)
   }
 
-  let scrollY = window.scrollY
-
-  if (scrollbarWidth > 0 && document.body.scrollHeight > window.innerHeight) {
-    document.body.style.paddingRight = `${scrollbarWidth}px`
-  }
-
-  if (lockedScrolls.length === 0) {
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollY}px`
-    document.body.style.left = '0'
-    document.body.style.right = '0'
-  }
-
   if (lockedScrolls.length > 0) {
     // check if we need to remove any current scroll locks
-    lockedScrolls[lockedScrolls.length - 1].removeListeners()
+    lockedScrolls[lockedScrolls.length - 1].destroy()
 
     // filter any nodes that may be gone from the DOM now
     lockedScrolls = lockedScrolls.filter((lockedScroll) =>
@@ -151,19 +140,15 @@ function lockScrollbars(node = null) {
   // store the scroll lock enable/disable methods so we can disable them when
   // new ones are created or enable them when old ones are destroyed
   if (document.body.contains(node)) {
-    lockedScrolls.push({
-      node,
-      addListeners,
-      removeListeners,
-    })
-    addListeners()
+    lockedScrolls.push({ node, create, destroy })
+    create()
   }
 
   return () => {
     const index = lockedScrolls.findIndex((scroll) => scroll.node === node)
 
     if (index > -1) {
-      removeListeners()
+      destroy()
 
       // remove this scroll lock from stored scroll locks
       lockedScrolls.splice(index, 1)
@@ -175,29 +160,20 @@ function lockScrollbars(node = null) {
         )
         // as a side effect, make sure to remove listeners from this node
         if (containsLockedScrollNode === false) {
-          lockedScroll.removeListeners()
+          lockedScroll.destroy()
         }
         return containsLockedScrollNode
       })
 
       // enable the previous scroll lock if any are left
       if (lockedScrolls.length > 0) {
-        lockedScrolls[lockedScrolls.length - 1].addListeners()
+        lockedScrolls[lockedScrolls.length - 1].create()
       }
     }
 
     if (lockedScrolls.length === 0) {
-      if (
-        scrollbarWidth > 0 &&
-        document.body.scrollHeight > window.innerHeight
-      ) {
-        document.body.style.paddingRight = ''
-      }
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      window.scrollTo(0, scrollY)
+      style.remove()
+      style = undefined
     }
   }
 }
