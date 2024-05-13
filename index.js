@@ -2,7 +2,11 @@ const listenerOptions = { capture: true, passive: false }
 let lockedScrolls = []
 let scrollbarWidth
 
-if (typeof window !== 'undefined' && scrollbarWidth === undefined) {
+/**
+ * Set the cached width of the document body's scrollbar.
+ * This is used to determine how much padding to add to the body when locking scrollbars.
+ */
+function setScrollbarWidth() {
   const div = document.createElement('div')
   div.setAttribute(
     'style',
@@ -17,6 +21,23 @@ if (typeof window !== 'undefined' && scrollbarWidth === undefined) {
   document.body.appendChild(div)
   scrollbarWidth = div.offsetWidth - div.clientWidth
   document.body.removeChild(div)
+}
+
+if (typeof window !== 'undefined' && scrollbarWidth === undefined) {
+  let isInitialResize = true
+  let resizeTimeout
+
+  new ResizeObserver(() => {
+    if (isInitialResize) {
+      setScrollbarWidth()
+      isInitialResize = false
+    }
+
+    clearTimeout(resizeTimeout)
+    resizeTimeout = setTimeout(() => {
+      isInitialResize = true
+    }, 1000)
+  }).observe(document.documentElement)
 }
 
 /**
