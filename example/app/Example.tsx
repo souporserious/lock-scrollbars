@@ -9,7 +9,7 @@ export function Example() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="shrink-0 bg-gray-600 text-white px-4 py-2 rounded"
+        className="shrink-0 bg-gray-600 text-white min-h-[2lh] px-4 rounded"
       >
         Open modal
       </button>
