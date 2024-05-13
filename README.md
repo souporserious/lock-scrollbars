@@ -56,3 +56,11 @@ function Modal({
   return <dialog ref={dialogRef}>{children}</dialog>
 }
 ```
+
+## Development
+
+```bash
+cd example
+npm install
+npm run dev
+```
