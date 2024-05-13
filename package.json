@@ -1,8 +1,11 @@
 {
   "name": "lock-scrollbars",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Lock all scrollbars optionally allowing for a single scrollbar to be unlocked.",
   "main": "index.js",
+  "files": [
+    "index.js"
+  ],
   "author": "Travis Arnold (http://souporserious.com)",
   "license": "MIT",
   "bugs": {
