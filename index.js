@@ -3,18 +3,18 @@ const scrollCoords = new WeakMap()
 /** @param {HTMLElement} node */
 const lockScroll = (node) => {
   const scrollElementCoords = scrollCoords.get(node)
-
   if (scrollElementCoords) {
     node.scrollLeft = scrollElementCoords.x
     node.scrollTop = scrollElementCoords.y
   }
-
   rafId = requestAnimationFrame(() => lockScroll(node))
 }
 const cancelLockScroll = () => {
   // wait one frame before canceling the scroll lock to prevent scrollbar jump
   requestAnimationFrame(() => cancelAnimationFrame(rafId))
 }
+const getCanScrollX = (node) => node.scrollWidth > node.clientWidth
+const getCanScrollY = (node) => node.scrollHeight > node.clientHeight
 const preventDefault = (event) => event.preventDefault()
 const preventScrollKeys = (event) => {
   const scrollKeys = [
@@ -87,6 +87,22 @@ function lockScrollbars(node = null) {
       event.preventDefault()
     }
   }
+  const scrollables = Array.from(
+    (node || document).querySelectorAll('*')
+  ).filter((node) => {
+    const computedStyle = window.getComputedStyle(node)
+    const overflow = computedStyle.getPropertyValue('overflow')
+    const overflowX = computedStyle.getPropertyValue('overflow-x')
+    const overflowY = computedStyle.getPropertyValue('overflow-y')
+    return (
+      overflow === 'auto' ||
+      overflow === 'scroll' ||
+      overflowX === 'auto' ||
+      overflowX === 'scroll' ||
+      overflowY === 'auto' ||
+      overflowY === 'scroll'
+    )
+  })
   let className
 
   const create = () => {
@@ -117,9 +133,25 @@ function lockScrollbars(node = null) {
       style = document.createElement('style')
     }
 
+    scrollables.forEach((scrollableNode) => {
+      const canScrollX = getCanScrollX(scrollableNode)
+      const canScrollY = getCanScrollY(scrollableNode)
+      let touchAction = 'none'
+
+      if (canScrollX && canScrollY) {
+        touchAction = 'auto'
+      } else if (canScrollX) {
+        touchAction = 'pan-x'
+      } else if (canScrollY) {
+        touchAction = 'pan-y'
+      }
+
+      scrollableNode.style.touchAction = touchAction
+    })
+
     if (node) {
-      const canScrollX = node.scrollWidth > node.clientWidth
-      const canScrollY = node.scrollHeight > node.clientHeight
+      const canScrollX = getCanScrollX(node)
+      const canScrollY = getCanScrollY(node)
       let touchAction = 'none'
 
       if (canScrollX && canScrollY) {
@@ -132,8 +164,7 @@ function lockScrollbars(node = null) {
 
       className = `ls${Math.random().toString(36).slice(2)}`
       node.classList.add(className)
-
-      style.innerHTML = `*, ::backdrop { touch-action: none }\n.${className} { overscroll-behavior: contain; touch-action: ${touchAction} }\n.${className} * { touch-action: auto }`
+      style.innerHTML = `*, ::backdrop { touch-action: none }\n.${className}, .${className} * { overscroll-behavior: contain; touch-action: ${touchAction} }`
     } else {
       style.innerHTML = `*, ::backdrop { touch-action: none }`
     }
@@ -154,6 +185,10 @@ function lockScrollbars(node = null) {
     window.removeEventListener('mouseup', mouseUp, { capture: true })
     window.removeEventListener('wheel', wheelLock, { capture: true })
     window.removeEventListener('keydown', preventScrollKeys, { capture: true })
+
+    scrollables.forEach((scrollableNode) => {
+      scrollableNode.style.touchAction = ''
+    })
   }
 
   if (lockedScrolls.length > 0) {
