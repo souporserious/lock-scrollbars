@@ -32,6 +32,22 @@ const preventScrollKeys = (event) => {
     event.preventDefault()
   }
 }
+const getScrollableElements = (node) => {
+  return Array.from((node || document).querySelectorAll('*')).filter((node) => {
+    const computedStyle = window.getComputedStyle(node)
+    const overflow = computedStyle.getPropertyValue('overflow')
+    const overflowX = computedStyle.getPropertyValue('overflow-x')
+    const overflowY = computedStyle.getPropertyValue('overflow-y')
+    return (
+      overflow === 'auto' ||
+      overflow === 'scroll' ||
+      overflowX === 'auto' ||
+      overflowX === 'scroll' ||
+      overflowY === 'auto' ||
+      overflowY === 'scroll'
+    )
+  })
+}
 /** @type {HTMLStyleElement} */
 let style
 let lockedScrolls = []
@@ -87,24 +103,10 @@ function lockScrollbars(node = null) {
       event.preventDefault()
     }
   }
-  const scrollables = Array.from(
-    (node || document).querySelectorAll('*')
-  ).filter((node) => {
-    const computedStyle = window.getComputedStyle(node)
-    const overflow = computedStyle.getPropertyValue('overflow')
-    const overflowX = computedStyle.getPropertyValue('overflow-x')
-    const overflowY = computedStyle.getPropertyValue('overflow-y')
-    return (
-      overflow === 'auto' ||
-      overflow === 'scroll' ||
-      overflowX === 'auto' ||
-      overflowX === 'scroll' ||
-      overflowY === 'auto' ||
-      overflowY === 'scroll'
-    )
-  })
+
   let className
 
+  const scrollables = getScrollableElements(node)
   const create = () => {
     if (node) {
       node.addEventListener('mouseover', mouseOver, { capture: true })
@@ -122,11 +124,6 @@ function lockScrollbars(node = null) {
       passive: false,
     })
 
-    /**
-     * Set touch action styles to prevent scrolling on mobile devices.
-     * To fix Safari still scrolling the page on overflow elements, we apply
-     * pan-x or pan-y to the element depending on the scrollable axis.
-     */
     const shouldCreateStyle = style === undefined
 
     if (shouldCreateStyle) {
@@ -173,7 +170,6 @@ function lockScrollbars(node = null) {
       document.head.appendChild(style)
     }
   }
-
   const destroy = () => {
     if (node) {
       node.removeEventListener('mouseover', mouseOver, { capture: true })
@@ -208,10 +204,20 @@ function lockScrollbars(node = null) {
     create()
   }
 
+  // listen for orientation changes and recreate the scroll lock
+  const orientationMediaQuery = window.matchMedia('(orientation: portrait)')
+
+  orientationMediaQuery.onchange = function () {
+    destroy()
+    create()
+  }
+
   return () => {
     const index = lockedScrolls.findIndex((scroll) => scroll.node === node)
 
     if (index > -1) {
+      orientationMediaQuery.onchange = undefined
+
       destroy()
 
       // remove this scroll lock from stored scroll locks
