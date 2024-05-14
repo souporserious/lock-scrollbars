@@ -1,5 +1,20 @@
-const listenerOptions = { capture: true, passive: false }
+let rafId
 const scrollCoords = new WeakMap()
+/** @param {HTMLElement} node */
+const lockScroll = (node) => {
+  const scrollElementCoords = scrollCoords.get(node)
+
+  if (scrollElementCoords) {
+    node.scrollLeft = scrollElementCoords.x
+    node.scrollTop = scrollElementCoords.y
+  }
+
+  rafId = requestAnimationFrame(() => lockScroll(node))
+}
+const cancelLockScroll = () => {
+  // wait one frame before canceling the scroll lock to prevent scrollbar jump
+  requestAnimationFrame(() => cancelAnimationFrame(rafId))
+}
 const preventDefault = (event) => event.preventDefault()
 const preventScrollKeys = (event) => {
   const scrollKeys = [
@@ -29,12 +44,18 @@ let lockedScrolls = []
  */
 function lockScrollbars(node = null) {
   const mouseOver = () => {
-    window.removeEventListener('wheel', preventDefault, listenerOptions)
-    window.removeEventListener('keydown', preventScrollKeys, listenerOptions)
+    window.removeEventListener('wheel', preventDefault, { capture: true })
+    window.removeEventListener('keydown', preventScrollKeys, { capture: true })
   }
   const mouseOut = () => {
-    window.addEventListener('wheel', preventDefault, listenerOptions)
-    window.addEventListener('keydown', preventScrollKeys, listenerOptions)
+    window.addEventListener('wheel', preventDefault, {
+      capture: true,
+      passive: false,
+    })
+    window.addEventListener('keydown', preventScrollKeys, {
+      capture: true,
+      passive: false,
+    })
   }
   const mouseDown = (event) => {
     if (event.target !== node) {
@@ -42,7 +63,12 @@ function lockScrollbars(node = null) {
         x: event.target.scrollLeft,
         y: event.target.scrollTop,
       })
+      lockScroll(event.target)
     }
+  }
+  const mouseUp = (event) => {
+    cancelLockScroll()
+    scrollCoords.delete(event.target)
   }
   const wheelLock = (event) => {
     const scrollableDistance = node.scrollHeight - node.offsetHeight
@@ -61,32 +87,24 @@ function lockScrollbars(node = null) {
       event.preventDefault()
     }
   }
-  const scrollLock = (event) => {
-    let scrollElement = event.target
-
-    if (event.target === document) {
-      scrollElement = document.documentElement
-    }
-
-    const scrollElementCoords = scrollCoords.get(scrollElement)
-
-    if (scrollElementCoords) {
-      scrollElement.scrollLeft = scrollElementCoords.x
-      scrollElement.scrollTop = scrollElementCoords.y
-    }
-  }
   let className
 
   const create = () => {
     if (node) {
-      node.addEventListener('mouseover', mouseOver, true)
-      node.addEventListener('mouseout', mouseOut, true)
+      node.addEventListener('mouseover', mouseOver, { capture: true })
+      node.addEventListener('mouseout', mouseOut, { capture: true })
       mouseOut()
     }
-    window.addEventListener('mousedown', mouseDown, true)
-    window.addEventListener('wheel', wheelLock, listenerOptions)
-    window.addEventListener('scroll', scrollLock, true)
-    window.addEventListener('keydown', preventScrollKeys, listenerOptions)
+    window.addEventListener('mousedown', mouseDown, { capture: true })
+    window.addEventListener('mouseup', mouseUp, { capture: true })
+    window.addEventListener('wheel', wheelLock, {
+      capture: true,
+      passive: false,
+    })
+    window.addEventListener('keydown', preventScrollKeys, {
+      capture: true,
+      passive: false,
+    })
 
     /**
      * Set touch action styles to prevent scrolling on mobile devices.
@@ -127,15 +145,15 @@ function lockScrollbars(node = null) {
 
   const destroy = () => {
     if (node) {
-      node.removeEventListener('mouseover', mouseOver, true)
-      node.removeEventListener('mouseout', mouseOut, true)
+      node.removeEventListener('mouseover', mouseOver, { capture: true })
+      node.removeEventListener('mouseout', mouseOut, { capture: true })
       mouseOver()
       node.classList.remove(className)
     }
-    window.removeEventListener('mousedown', mouseDown, true)
-    window.removeEventListener('wheel', wheelLock, listenerOptions)
-    window.removeEventListener('scroll', scrollLock, true)
-    window.removeEventListener('keydown', preventScrollKeys, listenerOptions)
+    window.removeEventListener('mousedown', mouseDown, { capture: true })
+    window.removeEventListener('mouseup', mouseUp, { capture: true })
+    window.removeEventListener('wheel', wheelLock, { capture: true })
+    window.removeEventListener('keydown', preventScrollKeys, { capture: true })
   }
 
   if (lockedScrolls.length > 0) {
@@ -148,7 +166,7 @@ function lockScrollbars(node = null) {
     )
   }
 
-  // store the scroll lock enable/disable methods so we can disable them when
+  // store the scroll lock create/destroy methods so we can disable them when
   // new ones are created or enable them when old ones are destroyed
   if (document.body.contains(node)) {
     lockedScrolls.push({ node, create, destroy })
