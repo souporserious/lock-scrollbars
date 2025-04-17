@@ -76,18 +76,20 @@ function lockScrollbars(node = null) {
     document.body.style.paddingRight = `${scrollbarWidth}px`
   }
 
+  const wheelKeydownEventsController = new AbortController()
   const mouseOver = () => {
-    window.removeEventListener('wheel', preventDefault, { capture: true })
-    window.removeEventListener('keydown', preventScrollKeys, { capture: true })
+    wheelKeydownEventsController.abort()
   }
   const mouseOut = () => {
     window.addEventListener('wheel', preventDefault, {
       capture: true,
       passive: false,
+      signal: wheelKeydownEventsController.signal,
     })
     window.addEventListener('keydown', preventScrollKeys, {
       capture: true,
       passive: false,
+      signal: wheelKeydownEventsController.signal,
     })
   }
   const mouseDown = (event) => {
@@ -120,27 +122,40 @@ function lockScrollbars(node = null) {
       event.preventDefault()
     }
   }
-
-  let className
-
   const scrollables = getScrollableElements(node)
+  const eventController = new AbortController()
+  let className
 
   function create() {
     // make sure wheel/keys are blocked unless hovered on the exception node
     if (node) {
-      node.addEventListener('mouseover', mouseOver, { capture: true })
-      node.addEventListener('mouseout', mouseOut, { capture: true })
+      node.addEventListener('mouseover', mouseOver, {
+        capture: true,
+        signal: eventController.signal,
+      })
+      node.addEventListener('mouseout', mouseOut, {
+        capture: true,
+        signal: eventController.signal,
+      })
       mouseOut()
     }
-    window.addEventListener('mousedown', mouseDown, { capture: true })
-    window.addEventListener('mouseup', mouseUp, { capture: true })
+    window.addEventListener('mousedown', mouseDown, {
+      capture: true,
+      signal: eventController.signal,
+    })
+    window.addEventListener('mouseup', mouseUp, {
+      capture: true,
+      signal: eventController.signal,
+    })
     window.addEventListener('wheel', wheelLock, {
       capture: true,
       passive: false,
+      signal: eventController.signal,
     })
     window.addEventListener('keydown', preventScrollKeys, {
       capture: true,
       passive: false,
+      signal: eventController.signal,
     })
 
     const shouldCreateStyle = style === undefined
@@ -168,7 +183,7 @@ function lockScrollbars(node = null) {
 
     const styles = `
 *, ::backdrop {
-  touch-action: none
+  touch-action: none;
 }
 
 html, body {
@@ -183,7 +198,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 }
 `.trim()
 
-    // generate a unique class so we can scope our hide-scroll CSS
     if (node) {
       const canScrollX = getCanScrollX(node)
       const canScrollY = getCanScrollY(node)
@@ -204,7 +218,7 @@ ${styles}
 
 .${className}, .${className} * {
   overscroll-behavior: contain;
-  touch-action: ${touchAction}
+  touch-action: ${touchAction};
 }
 `.trim()
     } else {
@@ -217,17 +231,12 @@ ${styles}
   }
 
   function destroy() {
-    // remove all listeners & reset touch-action
+    eventController.abort()
+
     if (node) {
-      node.removeEventListener('mouseover', mouseOver, { capture: true })
-      node.removeEventListener('mouseout', mouseOut, { capture: true })
       mouseOver()
       node.classList.remove(className)
     }
-    window.removeEventListener('mousedown', mouseDown, { capture: true })
-    window.removeEventListener('mouseup', mouseUp, { capture: true })
-    window.removeEventListener('wheel', wheelLock, { capture: true })
-    window.removeEventListener('keydown', preventScrollKeys, { capture: true })
 
     scrollables.forEach((scrollableNode) => {
       scrollableNode.style.touchAction = ''
