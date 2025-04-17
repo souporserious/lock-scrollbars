@@ -65,8 +65,13 @@ let lockedScrolls = []
  * @returns {() => void} - Function to unlock the scrollbars.
  */
 function lockScrollbars(node = null) {
+  const scrollX = window.scrollX
+  const scrollY = window.scrollY
+
   document.documentElement.style.scrollbarGutter = 'stable'
   document.body.style.overflowY = 'hidden'
+  document.body.style.position = 'fixed'
+  document.body.style.inset = `-${scrollY}px 0 0 -${scrollX}px`
 
   const wheelKeydownEventsController = new AbortController()
   const mouseOver = () => {
@@ -283,7 +288,15 @@ ${styles}
     if (lockedScrolls.length === 0) {
       style.remove()
       style = undefined
+
+      // clean up styles
+      document.body.style.position = ''
+      document.body.style.inset = ''
       document.body.style.overflowY = ''
+
+      // restore scroll position
+      window.scroll(0, scrollY)
+
       // wait one frame before removing the scrollbar gutter to prevent scrollbar jump
       requestAnimationFrame(() => {
         document.documentElement.style.scrollbarGutter = ''
