@@ -182,19 +182,12 @@ function lockScrollbars(node = null) {
     })
 
     const styles = `
+* {
+  pointer-events: none;
+}
+
 *, ::backdrop {
   touch-action: none;
-}
-
-html, body {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-html::-webkit-scrollbar, body::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  background: transparent;
 }
 `.trim()
 
@@ -217,6 +210,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 ${styles}
 
 .${className}, .${className} * {
+  pointer-events: auto;
   overscroll-behavior: contain;
   touch-action: ${touchAction};
 }
