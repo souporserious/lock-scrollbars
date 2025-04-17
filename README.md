@@ -1,13 +1,14 @@
 # lock-scrollbars
 
-Lock all scrollbars recursively to prevent scrolling the page. Useful for modals, popovers, and other UI elements that require user interaction before continuing.
+Lock all scrollbars recursively to prevent scrolling the page. Useful for
+modals, popovers, and other UI elements that require user interaction before
+continuing.
 
 ## Features
 
 - Locks all scrollbars on the page
 - Allows a specific scrollable element
 - Supports nested scroll locks (e.g. popover within a modal)
-- Does not modify body overflow or use position fixed
 
 [View Example](https://lock-scrollbars.vercel.app/)
 
