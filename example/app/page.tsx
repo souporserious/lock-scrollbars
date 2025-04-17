@@ -1,5 +1,5 @@
-import { CodeBlock, CodeInline, GitProviderLink } from 'mdxts/components'
-import { MdxtsLogoLink } from 'mdxts/assets'
+import { CodeBlock, CodeInline, GitProviderLink } from 'renoun/components'
+import { RenounLogoLink } from 'renoun/assets'
 import { Example } from './Example'
 
 const exampleCode = `
@@ -46,7 +46,7 @@ export default function Page() {
           </div>
           <div className="md:col-span-2">
             <CodeBlock
-              value={exampleCode}
+              children={exampleCode}
               language="tsx"
               highlightedLines="3,7,14,17"
               focusedLines="3,7,14,17"
@@ -57,14 +57,14 @@ export default function Page() {
         <div className="grid grid-cols-1 md:grid-cols-3 py-6 gap-8 text-gray-900 dark:text-gray-200">
           <div className="flex flex-col gap-3">
             <h2 className="text-xl font-bold">Installation</h2>
-            <CodeBlock value="npm install lock-scrollbars" language="bash" />
+            <CodeBlock children="npm install lock-scrollbars" language="bash" />
           </div>
 
           <div className="flex flex-col gap-3">
             <h2 className="text-xl font-bold">Usage</h2>
             <p>
               Lock and unlock scrollbars programmatically using&nbsp;
-              <CodeInline value="lockScrollbars" />.
+              <CodeInline children="lockScrollbars" />.
             </p>
           </div>
 
@@ -77,9 +77,9 @@ export default function Page() {
           </div>
         </div>
       </main>
-      <footer className="flex items-baseline justify-center p-4 gap-2">
-        <span className="text-gray-500 dark:text-gray-400">Built with</span>
-        <MdxtsLogoLink className="h-3" />
+      <footer className="flex items-center justify-center p-4 gap-2">
+        <span className="text-gray-500 dark:text-gray-400">Site built with</span>
+        <RenounLogoLink className="h-4" />
       </footer>
     </>
   )

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://renoun.dev/schema.json",
+  "git": { "source": "https://github.com/souporserious/lock-scrollbars" },
+  "siteUrl": "https://lock-scrollbars.vercel.app/"
+}
