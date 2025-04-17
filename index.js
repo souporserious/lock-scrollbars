@@ -1,7 +1,8 @@
-let rafId
 const scrollCoords = new WeakMap()
+let rafId
+
 /** @param {HTMLElement} node */
-const lockScroll = (node) => {
+function lockScroll(node) {
   const scrollElementCoords = scrollCoords.get(node)
   if (scrollElementCoords) {
     node.scrollLeft = scrollElementCoords.x
@@ -9,30 +10,13 @@ const lockScroll = (node) => {
   }
   rafId = requestAnimationFrame(() => lockScroll(node))
 }
-const cancelLockScroll = () => {
+
+function cancelLockScroll() {
   // wait one frame before canceling the scroll lock to prevent scrollbar jump
   requestAnimationFrame(() => cancelAnimationFrame(rafId))
 }
-const getCanScrollX = (node) => node.scrollWidth > node.clientWidth
-const getCanScrollY = (node) => node.scrollHeight > node.clientHeight
-const preventDefault = (event) => event.preventDefault()
-const preventScrollKeys = (event) => {
-  const scrollKeys = [
-    'Space',
-    'PageUp',
-    'PageDown',
-    'End',
-    'Home',
-    'ArrowLeft',
-    'ArrowUp',
-    'ArrowRight',
-    'ArrowDown',
-  ]
-  if (scrollKeys.includes(event.key)) {
-    event.preventDefault()
-  }
-}
-const getScrollableElements = (node) => {
+
+function getScrollableElements(node) {
   return Array.from((node || document).querySelectorAll('*')).filter((node) => {
     const computedStyle = window.getComputedStyle(node)
     const overflow = computedStyle.getPropertyValue('overflow')
@@ -48,9 +32,32 @@ const getScrollableElements = (node) => {
     )
   })
 }
+
+function preventScrollKeys(event) {
+  const scrollKeys = [
+    'Space',
+    'PageUp',
+    'PageDown',
+    'End',
+    'Home',
+    'ArrowLeft',
+    'ArrowUp',
+    'ArrowRight',
+    'ArrowDown',
+  ]
+  if (scrollKeys.includes(event.key)) {
+    event.preventDefault()
+  }
+}
+
+const getCanScrollX = (node) => node.scrollWidth > node.clientWidth
+const getCanScrollY = (node) => node.scrollHeight > node.clientHeight
+const preventDefault = (event) => event.preventDefault()
+
 /** @type {HTMLStyleElement} */
 let style
 let lockedScrolls = []
+let originalBodyPaddingRight = ''
 
 /**
  * Lock all scrollbars by disabling mousewheel and locking scrollbars in position.
@@ -59,6 +66,16 @@ let lockedScrolls = []
  * @returns {() => void} - Function to unlock the scrollbars.
  */
 function lockScrollbars(node = null) {
+  // measure native scrollbar and apply padding to avoid layout shift
+  const scrollbarWidth =
+    window.innerWidth - document.documentElement.clientWidth
+  if (originalBodyPaddingRight === '') {
+    originalBodyPaddingRight = document.body.style.paddingRight || ''
+  }
+  if (scrollbarWidth > 0) {
+    document.body.style.paddingRight = `${scrollbarWidth}px`
+  }
+
   const mouseOver = () => {
     window.removeEventListener('wheel', preventDefault, { capture: true })
     window.removeEventListener('keydown', preventScrollKeys, { capture: true })
@@ -107,7 +124,9 @@ function lockScrollbars(node = null) {
   let className
 
   const scrollables = getScrollableElements(node)
-  const create = () => {
+
+  function create() {
+    // make sure wheel/keys are blocked unless hovered on the exception node
     if (node) {
       node.addEventListener('mouseover', mouseOver, { capture: true })
       node.addEventListener('mouseout', mouseOut, { capture: true })
@@ -130,6 +149,7 @@ function lockScrollbars(node = null) {
       style = document.createElement('style')
     }
 
+    // set touch-action on all scrollables so they don't flicker/overscroll
     scrollables.forEach((scrollableNode) => {
       const canScrollX = getCanScrollX(scrollableNode)
       const canScrollY = getCanScrollY(scrollableNode)
@@ -146,6 +166,24 @@ function lockScrollbars(node = null) {
       scrollableNode.style.touchAction = touchAction
     })
 
+    const styles = `
+*, ::backdrop {
+  touch-action: none
+}
+
+html, body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+`.trim()
+
+    // generate a unique class so we can scope our hide-scroll CSS
     if (node) {
       const canScrollX = getCanScrollX(node)
       const canScrollY = getCanScrollY(node)
@@ -161,16 +199,25 @@ function lockScrollbars(node = null) {
 
       className = `ls${Math.random().toString(36).slice(2)}`
       node.classList.add(className)
-      style.innerHTML = `*, ::backdrop { touch-action: none }\n.${className}, .${className} * { overscroll-behavior: contain; touch-action: ${touchAction} }`
+      style.innerHTML = `
+${styles}
+
+.${className}, .${className} * {
+  overscroll-behavior: contain;
+  touch-action: ${touchAction}
+}
+`.trim()
     } else {
-      style.innerHTML = `*, ::backdrop { touch-action: none }`
+      style.innerHTML = styles
     }
 
     if (shouldCreateStyle) {
       document.head.appendChild(style)
     }
   }
-  const destroy = () => {
+
+  function destroy() {
+    // remove all listeners & reset touch-action
     if (node) {
       node.removeEventListener('mouseover', mouseOver, { capture: true })
       node.removeEventListener('mouseout', mouseOut, { capture: true })
@@ -187,40 +234,36 @@ function lockScrollbars(node = null) {
     })
   }
 
+  // if there’s already a lock in place, tear down the topmost one first
   if (lockedScrolls.length > 0) {
-    // check if we need to remove any current scroll locks
     lockedScrolls[lockedScrolls.length - 1].destroy()
-
-    // filter any nodes that may be gone from the DOM now
-    lockedScrolls = lockedScrolls.filter((lockedScroll) =>
-      document.body.contains(lockedScroll.node)
+    lockedScrolls = lockedScrolls.filter((ls) =>
+      document.body.contains(ls.node)
     )
   }
 
-  // store the scroll lock create/destroy methods so we can disable them when
-  // new ones are created or enable them when old ones are destroyed
+  // add our new lock
   if (document.body.contains(node)) {
     lockedScrolls.push({ node, create, destroy })
     create()
   }
 
-  // listen for orientation changes and recreate the scroll lock
+  // re-create on orientation change
   const orientationMediaQuery = window.matchMedia('(orientation: portrait)')
-
-  orientationMediaQuery.onchange = function () {
+  orientationMediaQuery.onchange = () => {
     destroy()
     create()
   }
 
   return () => {
-    const index = lockedScrolls.findIndex((scroll) => scroll.node === node)
+    const index = lockedScrolls.findIndex(
+      (lockedScroll) => lockedScroll.node === node
+    )
 
     if (index > -1) {
       orientationMediaQuery.onchange = undefined
 
       destroy()
-
-      // remove this scroll lock from stored scroll locks
       lockedScrolls.splice(index, 1)
 
       // again, filter any nodes that may be gone from the DOM now
@@ -241,9 +284,12 @@ function lockScrollbars(node = null) {
       }
     }
 
+    // if no more locks, remove our style element and restore padding
     if (lockedScrolls.length === 0) {
       style.remove()
       style = undefined
+      document.body.style.paddingRight = originalBodyPaddingRight
+      originalBodyPaddingRight = ''
     }
   }
 }
