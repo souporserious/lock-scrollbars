@@ -57,7 +57,6 @@ const preventDefault = (event) => event.preventDefault()
 /** @type {HTMLStyleElement} */
 let style
 let lockedScrolls = []
-let originalBodyPaddingRight = ''
 
 /**
  * Lock all scrollbars by disabling mousewheel and locking scrollbars in position.
@@ -66,15 +65,8 @@ let originalBodyPaddingRight = ''
  * @returns {() => void} - Function to unlock the scrollbars.
  */
 function lockScrollbars(node = null) {
-  // measure native scrollbar and apply padding to avoid layout shift
-  const scrollbarWidth =
-    window.innerWidth - document.documentElement.clientWidth
-  if (originalBodyPaddingRight === '') {
-    originalBodyPaddingRight = document.body.style.paddingRight || ''
-  }
-  if (scrollbarWidth > 0) {
-    document.body.style.paddingRight = `${scrollbarWidth}px`
-  }
+  document.documentElement.style.scrollbarGutter = 'stable'
+  document.body.style.overflowY = 'hidden'
 
   const wheelKeydownEventsController = new AbortController()
   const mouseOver = () => {
@@ -291,8 +283,11 @@ ${styles}
     if (lockedScrolls.length === 0) {
       style.remove()
       style = undefined
-      document.body.style.paddingRight = originalBodyPaddingRight
-      originalBodyPaddingRight = ''
+      document.body.style.overflowY = ''
+      // wait one frame before removing the scrollbar gutter to prevent scrollbar jump
+      requestAnimationFrame(() => {
+        document.documentElement.style.scrollbarGutter = ''
+      })
     }
   }
 }
