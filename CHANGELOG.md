@@ -1,5 +1,9 @@
 # lock-scrollbars
 
+# 0.4.1
+
+- Uses position fixed and scroll restoration to prevent scrolling in Safari
+
 # 0.4.0
 
 - Uses `AbortController` to remove events, resulting in less code.
