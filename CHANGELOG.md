@@ -1,5 +1,9 @@
 # lock-scrollbars
 
+# 0.4.2
+
+- Avoids errors when tearing down styles if no style element exists.
+
 # 0.4.1
 
 - Uses position fixed and scroll restoration to prevent scrolling in Safari

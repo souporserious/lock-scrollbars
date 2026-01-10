@@ -286,7 +286,7 @@ ${styles}
 
     // if no more locks, remove our style element and restore padding
     if (lockedScrolls.length === 0) {
-      style.remove()
+      style?.remove()
       style = undefined
 
       // clean up styles
