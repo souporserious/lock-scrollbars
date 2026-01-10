@@ -1,7 +1,8 @@
 # lock-scrollbars
 
-# 0.4.2
+# 0.5.0
 
+- Move to ESM syntax.
 - Avoids errors when tearing down styles if no style element exists.
 
 # 0.4.1

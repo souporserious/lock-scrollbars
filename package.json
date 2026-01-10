@@ -1,6 +1,7 @@
 {
   "name": "lock-scrollbars",
-  "version": "0.4.1",
+  "version": "0.4.2",
+  "type": "module",
   "description": "Utility to lock all scrollbars recursively, optionally allowing for a single scrollbar to be unlocked.",
   "main": "index.js",
   "files": [

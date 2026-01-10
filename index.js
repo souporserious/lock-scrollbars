@@ -64,7 +64,7 @@ let lockedScrolls = []
  * @param {HTMLElement|null} node - The DOM element to allow scrolling on hover.
  * @returns {() => void} - Function to unlock the scrollbars.
  */
-function lockScrollbars(node = null) {
+export function lockScrollbars(node = null) {
   const scrollX = window.scrollX
   const scrollY = window.scrollY
 
@@ -304,5 +304,3 @@ ${styles}
     }
   }
 }
-
-module.exports = { lockScrollbars }
