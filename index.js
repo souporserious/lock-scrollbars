@@ -1,4 +1,9 @@
+/** @typedef {{ x: number, y: number }} ScrollPosition */
+/** @typedef {{ node: HTMLElement | null, create: () => void, destroy: () => void }} LockedScroll */
+
+/** @type {WeakMap<HTMLElement, ScrollPosition>} */
 const scrollCoords = new WeakMap()
+/** @type {WeakMap<HTMLElement, number>} */
 const scrollRafIds = new WeakMap()
 
 /** @param {HTMLElement} node */
@@ -22,9 +27,18 @@ function cancelLockScroll(node) {
   }
 }
 
+/**
+ * @param {HTMLElement | null} node
+ * @returns {HTMLElement[]}
+ */
 function getScrollableElements(node) {
   if (!node) return [] // Optimization: Don't scan the whole document if locking globally
-  return Array.from(node.querySelectorAll('*')).filter((el) => {
+  /**
+   * @param {Element} el
+   * @returns {el is HTMLElement}
+   */
+  const isScrollableHTMLElement = (el) => {
+    if (!(el instanceof HTMLElement)) return false
     const computedStyle = window.getComputedStyle(el)
     const overflow = computedStyle.getPropertyValue('overflow')
     const overflowX = computedStyle.getPropertyValue('overflow-x')
@@ -37,9 +51,12 @@ function getScrollableElements(node) {
       overflowY === 'auto' ||
       overflowY === 'scroll'
     )
-  })
+  }
+
+  return Array.from(node.querySelectorAll('*')).filter(isScrollableHTMLElement)
 }
 
+/** @param {KeyboardEvent} event */
 function preventScrollKeys(event) {
   const scrollKeys = [
     'Space',
@@ -57,12 +74,16 @@ function preventScrollKeys(event) {
   }
 }
 
+/** @param {HTMLElement} node */
 const getCanScrollX = (node) => node.scrollWidth > node.clientWidth
+/** @param {HTMLElement} node */
 const getCanScrollY = (node) => node.scrollHeight > node.clientHeight
+/** @param {Event} event */
 const preventDefault = (event) => event.preventDefault()
 
-/** @type {HTMLStyleElement} */
+/** @type {HTMLStyleElement | undefined} */
 let style
+/** @type {LockedScroll[]} */
 let lockedScrolls = []
 
 /**
@@ -97,6 +118,7 @@ export function lockScrollbars(node = null) {
   document.body.style.position = 'fixed'
   document.body.style.inset = `-${scrollY}px 0 0 -${scrollX}px`
 
+  /** @type {AbortController | null} */
   let outsideEventsController = null
 
   const enableOutsideBlocking = () => {
@@ -132,27 +154,36 @@ export function lockScrollbars(node = null) {
     enableOutsideBlocking()
   }
 
+  /** @param {MouseEvent} event */
   const mouseDown = (event) => {
-    if (event.target !== node) {
-      scrollCoords.set(event.target, {
-        x: event.target.scrollLeft,
-        y: event.target.scrollTop,
+    const target = event.target
+    if (!(target instanceof HTMLElement)) return
+    if (target !== node) {
+      scrollCoords.set(target, {
+        x: target.scrollLeft,
+        y: target.scrollTop,
       })
-      lockScroll(event.target)
+      lockScroll(target)
     }
   }
 
+  /** @param {MouseEvent} event */
   const mouseUp = (event) => {
-    cancelLockScroll(event.target)
-    scrollCoords.delete(event.target)
+    const target = event.target
+    if (!(target instanceof HTMLElement)) return
+    cancelLockScroll(target)
+    scrollCoords.delete(target)
   }
 
+  /** @param {WheelEvent} event */
   const wheelLock = (event) => {
     if (!node) return
 
     const scrollableDistance = node.scrollHeight - node.offsetHeight
-    const isTarget = node === event.target
-    const isChildOfTarget = node.contains(event.target)
+    const target = event.target
+    const isTarget = node === target
+    const isChildOfTarget =
+      target instanceof Node ? node.contains(target) : false
 
     if (scrollableDistance > 0 && !isTarget && isChildOfTarget) {
       return
@@ -169,6 +200,7 @@ export function lockScrollbars(node = null) {
 
   const scrollables = getScrollableElements(node)
   const lifecycleController = new AbortController()
+  /** @type {string | undefined} */
   let className
 
   function create() {
@@ -208,10 +240,8 @@ export function lockScrollbars(node = null) {
     }
 
     const shouldCreateStyle = style === undefined
-
-    if (shouldCreateStyle) {
-      style = document.createElement('style')
-    }
+    const styleEl = style ?? document.createElement('style')
+    if (style === undefined) style = styleEl
 
     // set touch-action on all scrollables so they don't flicker/overscroll
     scrollables.forEach((scrollableNode) => {
@@ -255,7 +285,7 @@ export function lockScrollbars(node = null) {
 
       className = `ls${Math.random().toString(36).slice(2)}`
       node.classList.add(className)
-      style.innerHTML = `
+      styleEl.innerHTML = `
 ${styles}
 
 .${className}, .${className} * {
@@ -265,11 +295,11 @@ ${styles}
 }
 `.trim()
     } else {
-      style.innerHTML = styles
+      styleEl.innerHTML = styles
     }
 
     if (shouldCreateStyle) {
-      document.head.appendChild(style)
+      document.head.appendChild(styleEl)
     }
   }
 
@@ -278,7 +308,7 @@ ${styles}
     disableOutsideBlocking()
 
     if (node) {
-      node.classList.remove(className)
+      if (className) node.classList.remove(className)
     }
 
     scrollables.forEach((scrollableNode) => {
@@ -305,7 +335,7 @@ ${styles}
     )
 
     if (index > -1) {
-      orientationMediaQuery.onchange = undefined
+      orientationMediaQuery.onchange = null
 
       destroy()
       lockedScrolls.splice(index, 1)

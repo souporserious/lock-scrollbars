@@ -11,6 +11,7 @@
   scrollable instances safely.
 - Optimizes `getScrollableElements` to skip expensive DOM scans when no specific
   node is provided.
+- Adds TypeScript declaration file and JSDoc types.
 
 # 0.4.1
 

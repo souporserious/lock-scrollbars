@@ -4,8 +4,10 @@
   "type": "module",
   "description": "Utility to lock all scrollbars recursively, optionally allowing for a single scrollbar to be unlocked.",
   "main": "index.js",
+  "types": "index.d.ts",
   "files": [
-    "index.js"
+    "index.js",
+    "index.d.ts"
   ],
   "author": "Travis Arnold (http://souporserious.com)",
   "license": "MIT",
