@@ -9,6 +9,15 @@
     "index.js",
     "index.d.ts"
   ],
+  "scripts": {
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@vitest/browser": "^4.0.16",
+    "@vitest/browser-playwright": "^4.0.16",
+    "playwright": "^1.57.0",
+    "vitest": "^4.0.16"
+  },
   "author": "Travis Arnold (http://souporserious.com)",
   "license": "MIT",
   "bugs": {

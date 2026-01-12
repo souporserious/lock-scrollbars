@@ -108,8 +108,8 @@ export function lockScrollbars(node = null) {
   // We do this BEFORE setting styles to ensure clean state transition
   if (lockedScrolls.length > 0) {
     lockedScrolls[lockedScrolls.length - 1].destroy()
-    lockedScrolls = lockedScrolls.filter((ls) =>
-      document.body.contains(ls.node)
+    lockedScrolls = lockedScrolls.filter(
+      (ls) => !ls.node || document.body.contains(ls.node)
     )
   }
 
