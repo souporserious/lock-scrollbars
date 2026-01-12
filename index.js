@@ -1,5 +1,5 @@
 const scrollCoords = new WeakMap()
-let rafId
+const scrollRafIds = new WeakMap()
 
 /** @param {HTMLElement} node */
 function lockScroll(node) {
@@ -8,17 +8,24 @@ function lockScroll(node) {
     node.scrollLeft = scrollElementCoords.x
     node.scrollTop = scrollElementCoords.y
   }
-  rafId = requestAnimationFrame(() => lockScroll(node))
+  const id = requestAnimationFrame(() => lockScroll(node))
+  scrollRafIds.set(node, id)
 }
 
-function cancelLockScroll() {
-  // wait one frame before canceling the scroll lock to prevent scrollbar jump
-  requestAnimationFrame(() => cancelAnimationFrame(rafId))
+/** @param {HTMLElement} node */
+function cancelLockScroll(node) {
+  const id = scrollRafIds.get(node)
+  if (id) {
+    // wait one frame before canceling to prevent scrollbar jump
+    requestAnimationFrame(() => cancelAnimationFrame(id))
+    scrollRafIds.delete(node)
+  }
 }
 
 function getScrollableElements(node) {
-  return Array.from((node || document).querySelectorAll('*')).filter((node) => {
-    const computedStyle = window.getComputedStyle(node)
+  if (!node) return [] // Optimization: Don't scan the whole document if locking globally
+  return Array.from(node.querySelectorAll('*')).filter((el) => {
+    const computedStyle = window.getComputedStyle(el)
     const overflow = computedStyle.getPropertyValue('overflow')
     const overflowX = computedStyle.getPropertyValue('overflow-x')
     const overflowY = computedStyle.getPropertyValue('overflow-y')
@@ -65,30 +72,66 @@ let lockedScrolls = []
  * @returns {() => void} - Function to unlock the scrollbars.
  */
 export function lockScrollbars(node = null) {
-  const scrollX = window.scrollX
-  const scrollY = window.scrollY
+  // Check if already locked to prevent jumping to 0 on nested locks
+  const isAlreadyLocked = document.body.style.position === 'fixed'
+
+  const scrollY = isAlreadyLocked
+    ? Math.abs(parseInt(document.body.style.top || '0', 10))
+    : window.scrollY
+
+  const scrollX = isAlreadyLocked
+    ? Math.abs(parseInt(document.body.style.left || '0', 10))
+    : window.scrollX
+
+  // If there’s already a lock in place, tear down the topmost one first
+  // We do this BEFORE setting styles to ensure clean state transition
+  if (lockedScrolls.length > 0) {
+    lockedScrolls[lockedScrolls.length - 1].destroy()
+    lockedScrolls = lockedScrolls.filter((ls) =>
+      document.body.contains(ls.node)
+    )
+  }
 
   document.documentElement.style.scrollbarGutter = 'stable'
   document.body.style.overflowY = 'hidden'
   document.body.style.position = 'fixed'
   document.body.style.inset = `-${scrollY}px 0 0 -${scrollX}px`
 
-  const wheelKeydownEventsController = new AbortController()
-  const mouseOver = () => {
-    wheelKeydownEventsController.abort()
-  }
-  const mouseOut = () => {
+  let outsideEventsController = null
+
+  const enableOutsideBlocking = () => {
+    if (outsideEventsController) return // Already active
+    outsideEventsController = new AbortController()
+
     window.addEventListener('wheel', preventDefault, {
       capture: true,
       passive: false,
-      signal: wheelKeydownEventsController.signal,
+      signal: outsideEventsController.signal,
     })
     window.addEventListener('keydown', preventScrollKeys, {
       capture: true,
       passive: false,
-      signal: wheelKeydownEventsController.signal,
+      signal: outsideEventsController.signal,
     })
   }
+
+  const disableOutsideBlocking = () => {
+    if (outsideEventsController) {
+      outsideEventsController.abort()
+      outsideEventsController = null
+    }
+  }
+
+  const mouseOver = () => {
+    // User is hovering the exception node; allow local scrolling
+    disableOutsideBlocking()
+  }
+
+  const mouseOut = () => {
+    // User left the exception node; block global scrolling
+    enableOutsideBlocking()
+  }
+
   const mouseDown = (event) => {
     if (event.target !== node) {
       scrollCoords.set(event.target, {
@@ -98,11 +141,15 @@ export function lockScrollbars(node = null) {
       lockScroll(event.target)
     }
   }
+
   const mouseUp = (event) => {
-    cancelLockScroll()
+    cancelLockScroll(event.target)
     scrollCoords.delete(event.target)
   }
+
   const wheelLock = (event) => {
+    if (!node) return
+
     const scrollableDistance = node.scrollHeight - node.offsetHeight
     const isTarget = node === event.target
     const isChildOfTarget = node.contains(event.target)
@@ -119,41 +166,46 @@ export function lockScrollbars(node = null) {
       event.preventDefault()
     }
   }
+
   const scrollables = getScrollableElements(node)
-  const eventController = new AbortController()
+  const lifecycleController = new AbortController()
   let className
 
   function create() {
-    // make sure wheel/keys are blocked unless hovered on the exception node
-    if (node) {
-      node.addEventListener('mouseover', mouseOver, {
-        capture: true,
-        signal: eventController.signal,
-      })
-      node.addEventListener('mouseout', mouseOut, {
-        capture: true,
-        signal: eventController.signal,
-      })
-      mouseOut()
-    }
+    // Setup global listeners that persist for the life of the lock
     window.addEventListener('mousedown', mouseDown, {
       capture: true,
-      signal: eventController.signal,
+      signal: lifecycleController.signal,
     })
     window.addEventListener('mouseup', mouseUp, {
       capture: true,
-      signal: eventController.signal,
+      signal: lifecycleController.signal,
     })
-    window.addEventListener('wheel', wheelLock, {
-      capture: true,
-      passive: false,
-      signal: eventController.signal,
-    })
-    window.addEventListener('keydown', preventScrollKeys, {
-      capture: true,
-      passive: false,
-      signal: eventController.signal,
-    })
+
+    // Setup exception node logic
+    if (node) {
+      node.addEventListener('mouseover', mouseOver, {
+        capture: true,
+        signal: lifecycleController.signal,
+      })
+      node.addEventListener('mouseout', mouseOut, {
+        capture: true,
+        signal: lifecycleController.signal,
+      })
+
+      // Also listen for wheel on window to handle edge cases (overscroll)
+      window.addEventListener('wheel', wheelLock, {
+        capture: true,
+        passive: false,
+        signal: lifecycleController.signal,
+      })
+
+      // Initially block outside interactions until hovered
+      mouseOut()
+    } else {
+      // If no node provided, just block everything immediately and permanently
+      enableOutsideBlocking()
+    }
 
     const shouldCreateStyle = style === undefined
 
@@ -222,10 +274,10 @@ ${styles}
   }
 
   function destroy() {
-    eventController.abort()
+    lifecycleController.abort()
+    disableOutsideBlocking()
 
     if (node) {
-      mouseOver()
       node.classList.remove(className)
     }
 
@@ -234,16 +286,8 @@ ${styles}
     })
   }
 
-  // if there’s already a lock in place, tear down the topmost one first
-  if (lockedScrolls.length > 0) {
-    lockedScrolls[lockedScrolls.length - 1].destroy()
-    lockedScrolls = lockedScrolls.filter((ls) =>
-      document.body.contains(ls.node)
-    )
-  }
-
   // add our new lock
-  if (document.body.contains(node)) {
+  if (!node || document.body.contains(node)) {
     lockedScrolls.push({ node, create, destroy })
     create()
   }
@@ -268,9 +312,9 @@ ${styles}
 
       // again, filter any nodes that may be gone from the DOM now
       lockedScrolls = lockedScrolls.filter((lockedScroll) => {
-        const containsLockedScrollNode = document.body.contains(
-          lockedScroll.node
-        )
+        const containsLockedScrollNode =
+          !lockedScroll.node || document.body.contains(lockedScroll.node)
+
         // as a side effect, make sure to remove listeners from this node
         if (containsLockedScrollNode === false) {
           lockedScroll.destroy()
@@ -295,7 +339,7 @@ ${styles}
       document.body.style.overflowY = ''
 
       // restore scroll position
-      window.scroll(0, scrollY)
+      window.scroll(scrollX, scrollY)
 
       // wait one frame before removing the scrollbar gutter to prevent scrollbar jump
       requestAnimationFrame(() => {

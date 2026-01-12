@@ -4,6 +4,13 @@
 
 - Move to ESM syntax.
 - Avoids errors when tearing down styles if no style element exists.
+- Prevents page from jumping to top when stacking multiple locks.
+- Fixes bug where event listeners failed to re-attach after mouseOut due to
+  `AbortController` reuse.
+- Replaces global animation frame variable with a `WeakMap` to support multiple
+  scrollable instances safely.
+- Optimizes `getScrollableElements` to skip expensive DOM scans when no specific
+  node is provided.
 
 # 0.4.1
 
