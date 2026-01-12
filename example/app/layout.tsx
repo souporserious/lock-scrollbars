@@ -1,3 +1,4 @@
+import { RootProvider } from 'renoun'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
@@ -15,8 +16,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
-    </html>
+    <RootProvider
+      git={{ source: 'https://github.com/souporserious/lock-scrollbars' }}
+      siteUrl="https://lock-scrollbars.vercel.app/"
+      theme="nord"
+    >
+      <html lang="en">
+        <body className={inter.className}>{children}</body>
+      </html>
+    </RootProvider>
   )
 }

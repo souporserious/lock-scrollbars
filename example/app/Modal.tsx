@@ -1,5 +1,5 @@
 import React from 'react'
-import { lockScrollbars } from '../../index'
+import { lockScrollbars } from 'lock-scrollbars'
 
 /**
  * Displays content in a foreground window that temporarily disables interaction with the underlying page.

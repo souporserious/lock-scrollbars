@@ -1,16 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
 :root {
-  --foreground: theme(colors.black);
-  --background: theme(colors.white);
+  --foreground: #000;
+  --background: #fff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground: theme(colors.white);
-    --background: theme(colors.gray.800);
+    --foreground: #fff;
+    --background: #1f2937;
   }
 }
 
@@ -19,12 +17,25 @@ body {
   background-color: var(--background);
 }
 
+dialog {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+dialog[open] {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
 }
 
-::backdrop {
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
   backdrop-filter: blur(0.15rem);
 }

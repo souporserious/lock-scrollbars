@@ -1,15 +1,16 @@
-import { CodeBlock, CodeInline, GitProviderLink } from 'renoun/components'
+// @ts-expect-error
 import { RenounLogoLink } from 'renoun/assets'
+import { CodeBlock, Link } from 'renoun/components'
 import { Example } from './Example'
 
 const exampleCode = `
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { lockScrollbars } from 'lock-scrollbars'
 
-function Modal({ open, children }) {
-  const dialogRef = React.useRef(null)
-  const unlockScrollbars = React.useRef(null)
+function Modal({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const dialogRef = React.useRef<HTMLDialogElement | null>(null)
+  const unlockScrollbars = React.useRef<null | (() => void)>(null)
 
   useEffect(() => {
     const dialogNode = dialogRef.current
@@ -42,7 +43,7 @@ export default function Page() {
                 A small browser utility to lock all scrollbars recursively.
               </p>
             </div>
-            <GitProviderLink />
+            <Link variant="repository" className="block w-6 h-6" />
           </div>
           <div className="md:col-span-2">
             <CodeBlock
@@ -64,7 +65,10 @@ export default function Page() {
             <h2 className="text-xl font-bold">Usage</h2>
             <p>
               Lock and unlock scrollbars programmatically using&nbsp;
-              <CodeInline children="lockScrollbars" />.
+              <code className="rounded bg-black/5 px-1.5 py-0.5 font-mono text-sm dark:bg-white/10">
+                lockScrollbars
+              </code>
+              .
             </p>
           </div>
 
@@ -78,7 +82,9 @@ export default function Page() {
         </div>
       </main>
       <footer className="flex items-center justify-center p-4 gap-2">
-        <span className="text-gray-500 dark:text-gray-400">Site built with</span>
+        <span className="text-gray-500 dark:text-gray-400">
+          Site built with
+        </span>
         <RenounLogoLink className="h-4" />
       </footer>
     </>
