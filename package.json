@@ -28,9 +28,11 @@
     "scroll",
     "lock",
     "disable",
-    "modal",
     "popover",
+    "menu",
+    "select",
     "dialog",
+    "modal",
     "overlay"
   ]
 }
